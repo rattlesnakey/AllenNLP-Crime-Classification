@@ -1,0 +1,169 @@
+import tempfile
+from typing import Dict, Iterable, List, Tuple
+import allennlp
+import torch
+from allennlp.data import (
+    DataLoader,
+    DatasetReader,
+    Instance,
+    Vocabulary,
+    TextFieldTensors,
+)
+from allennlp.data.data_loaders import SimpleDataLoader
+from allennlp.data.fields import LabelField, TextField
+from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer, PretrainedTransformerIndexer
+from allennlp.data.tokenizers import Token, Tokenizer, WhitespaceTokenizer, PretrainedTransformerTokenizer
+from allennlp.models import Model
+from allennlp.modules import TextFieldEmbedder, Seq2VecEncoder
+from allennlp.modules.seq2vec_encoders import BagOfEmbeddingsEncoder
+from allennlp.modules.token_embedders import Embedding
+from allennlp.modules.text_field_embedders import BasicTextFieldEmbedder
+from allennlp.nn import util
+from allennlp.training.trainer import Trainer
+from allennlp.training.gradient_descent_trainer import GradientDescentTrainer
+from allennlp.training.optimizers import AdamOptimizer
+from allennlp.training.metrics import CategoricalAccuracy
+
+
+class ClassificationTsvReader(DatasetReader):
+    def __init__(
+        self,
+        tokenizer: Tokenizer = None,
+        token_indexers: Dict[str, TokenIndexer] = None,
+        max_tokens: int = None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        # self.tokenizer = tokenizer or WhitespaceTokenizer()
+        self.tokenizer = tokenizer or PretrainedTransformerTokenizer('bert-base-chinese')
+        # self.token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
+        self.token_indexers = token_indexers or PretrainedTransformerIndexer('bert-base-chinese')
+        self.max_tokens = max_tokens
+
+    def _read(self, file_path: str) -> Iterable[Instance]:
+        with open(file_path, "r") as lines:
+            for line in lines:
+                text, sentiment = line.strip().split("\t")
+                tokens = self.tokenizer.tokenize(text)
+                print(tokens)
+                break
+                if self.max_tokens:
+                    tokens = tokens[: self.max_tokens]
+                text_field = TextField(tokens, self.token_indexers)
+                label_field = LabelField(sentiment)
+                yield Instance({"text": text_field, "label": label_field})
+
+
+class SimpleClassifier(Model):
+    def __init__(
+        self, vocab: Vocabulary, embedder: TextFieldEmbedder, encoder: Seq2VecEncoder
+    ):
+        # 就是当前传进来的这个vocab的内容赋值给原来父类里面属性vocab的内容
+        super().__init__(vocab)
+        self.embedder = embedder
+        self.encoder = encoder
+        num_labels = vocab.get_vocab_size("labels")
+        self.classifier = torch.nn.Linear(encoder.get_output_dim(), num_labels)
+
+    def forward(
+        self, text: TextFieldTensors, label: torch.Tensor
+    ) -> Dict[str, torch.Tensor]:
+        print("In model.forward(); printing here just because binder is so slow")
+        # Shape: (batch_size, num_tokens, embedding_dim)
+        embedded_text = self.embedder(text)
+        # Shape: (batch_size, num_tokens)
+        mask = util.get_text_field_mask(text)
+        # Shape: (batch_size, encoding_dim)
+        encoded_text = self.encoder(embedded_text, mask)
+        # Shape: (batch_size, num_labels)
+        logits = self.classifier(encoded_text)
+        # Shape: (batch_size, num_labels)
+        probs = torch.nn.functional.softmax(logits, dim=-1)
+        # Shape: (1,)
+        loss = torch.nn.functional.cross_entropy(logits, label)
+        return {"loss": loss, "probs": probs}
+
+
+def build_dataset_reader() -> DatasetReader:
+    return ClassificationTsvReader()
+
+
+def read_data(reader: DatasetReader) -> Tuple[List[Instance], List[Instance]]:
+    print("Reading data")
+    training_data = list(reader.read("./data/crime_dataset/final_crime_data/test.tsv"))
+    # validation_data = list(reader.read("./data/movie_review/dev.tsv"))
+    # return training_data, validation_data
+
+
+def build_vocab(instances: Iterable[Instance]) -> Vocabulary:
+    print("Building the vocabulary")
+    return Vocabulary.from_instances(instances)
+
+
+def build_model(vocab: Vocabulary) -> Model:
+    print("Building the model")
+    vocab_size = vocab.get_vocab_size("tokens")
+    embedder = BasicTextFieldEmbedder(
+        # 这边的这个tokens这个key 和 indexer里面的key要对应
+        {"tokens": Embedding(embedding_dim=10, num_embeddings=vocab_size)}
+    )
+    encoder = BagOfEmbeddingsEncoder(embedding_dim=10)
+    return SimpleClassifier(vocab, embedder, encoder)
+
+
+def run_training_loop():
+    # 相当于是一个处理函数，Indexer只是定义处理的方法吧，应该还没处理
+    dataset_reader = build_dataset_reader()
+    # 读取数据，train_data是instance对象的数组
+    train_data, dev_data = read_data(dataset_reader)
+    # train 和 dev一起build_vocab，这时候应该
+    vocab = build_vocab(train_data + dev_data)
+    # 根据vocab构建model，因为model里面的维度需要用到vocab的信息
+    model = build_model(vocab)
+    # 构建dataloader
+    train_loader, dev_loader = build_data_loaders(train_data, dev_data)
+    # 记得处理一下index_with，应该就是batch的时候，用什么符号来padding之类的，所以要和vocab一致
+    train_loader.index_with(vocab)
+    dev_loader.index_with(vocab)
+
+    # You obviously won't want to create a temporary file for your training
+    # results, but for execution in binder for this guide, we need to do this.
+    with tempfile.TemporaryDirectory() as serialization_dir:
+        trainer = build_trainer(model, serialization_dir, train_loader, dev_loader)
+        print("Starting training")
+        trainer.train()
+        print("Finished training")
+
+    return model, dataset_reader
+
+
+def build_data_loaders(
+    train_data: List[Instance],
+    dev_data: List[Instance],
+) -> Tuple[DataLoader, DataLoader]:
+    train_loader = SimpleDataLoader(train_data, 8, shuffle=True)
+    dev_loader = SimpleDataLoader(dev_data, 8, shuffle=False)
+    return train_loader, dev_loader
+
+
+def build_trainer(
+    model: Model,
+    serialization_dir: str,
+    train_loader: DataLoader,
+    dev_loader: DataLoader,
+) -> Trainer:
+    parameters = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
+    optimizer = AdamOptimizer(parameters)  # type: ignore
+    trainer = GradientDescentTrainer(
+        model=model,
+        serialization_dir=serialization_dir,
+        data_loader=train_loader,
+        validation_data_loader=dev_loader,
+        num_epochs=5,
+        optimizer=optimizer,
+        cuda_device=-1,
+    )
+    return trainer
+reader = build_dataset_reader()
+read_data(reader)
+# run_training_loop()
