@@ -1,4 +1,4 @@
-local bert_model = "bert-base-uncased";
+local bert_model = "bert-base-chinese";
 
 {
     "dataset_reader" : {
@@ -15,8 +15,8 @@ local bert_model = "bert-base-uncased";
         },
         "max_tokens": 512
     },
-    "train_data_path": "data/crime_dataset/train.tsv",
-    "validation_data_path": "data/crime_dataset/valid.tsv",
+    "train_data_path": "data/crime_dataset/final_crime_data/filter_train_processed.tsv",
+    "validation_data_path": "data/crime_dataset/final_crime_data/filter_valid_processed.tsv",
     "model": {
         "type": "simple_classifier",
         "embedder": {
@@ -34,15 +34,36 @@ local bert_model = "bert-base-uncased";
         }
     },
     "data_loader": {
-        "batch_size": 16,
+        "batch_size": 8,
         "shuffle": true
     },
     "trainer": {
+        "type":"gradient_descent",
+        "cuda_device":3,
         "optimizer": {
-            "type": "adam",
-            "lr": 1.0e-5
+            "type": "huggingface_adamw",
+            "lr": 4e-5
         },
-        "num_epochs": 5,
-        "cuda_device":-1
-    }
+        "learning_rate_scheduler": {
+            "type": "linear_with_warmup",
+            "warmup_steps":100
+        },
+        "num_epochs": 100,
+        "patience":7,
+        "num_gradient_accumulation_steps":2,
+        "callbacks":[
+            {
+                "type":"wandb", 
+                "project":"crime-classification",
+                "entity":"hengyuan",
+                "name":"bert-lstm-lr4e-5-allennlp",
+                "watch_model":0,
+                "should_log_learning_rate":1
+            },
+            {
+                "type":"track_epoch_callback"
+            }
+        ]
+    },
+    "serialization_dir":"bert-lstm-model",
 }
