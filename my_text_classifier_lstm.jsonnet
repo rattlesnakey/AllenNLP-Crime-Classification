@@ -42,11 +42,11 @@ local bert_model = "bert-base-chinese";
         "cuda_device":3,
         "optimizer": {
             "type": "huggingface_adamw",
-            "lr": 4e-5
+            "lr": 1e-5
         },
         "learning_rate_scheduler": {
             "type": "linear_with_warmup",
-            "warmup_steps":100
+            "warmup_steps":1000
         },
         "num_epochs": 100,
         "patience":7,
@@ -56,7 +56,7 @@ local bert_model = "bert-base-chinese";
                 "type":"wandb", 
                 "project":"crime-classification",
                 "entity":"hengyuan",
-                "name":"bert-lstm-lr4e-5-allennlp",
+                "name":"bert-lstm-lr1e-5-warmup1000-allennlp",
                 "watch_model":0,
                 "should_log_learning_rate":1
             },
