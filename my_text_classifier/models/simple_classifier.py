@@ -52,7 +52,7 @@ class SimpleClassifier(Model):
         for precision, recall, fscore in zip(f1_dict['precision'], f1_dict['recall'], f1_dict['fscore']):
             total_precison += precision
             total_recall += recall
-            total_fscore = fscore
+            total_fscore += fscore
             counter += 1
         output['marco_precision'] = total_precison / counter
         output['marco_recall'] = total_recall / counter

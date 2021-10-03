@@ -42,7 +42,7 @@ local bert_model = "bert-base-chinese";
         "cuda_device":1,
         "optimizer": {
             "type": "huggingface_adamw",
-            "lr": 4e-5
+            "lr": 2e-5
         },
         "learning_rate_scheduler": {
             "type": "linear_with_warmup",
@@ -56,7 +56,7 @@ local bert_model = "bert-base-chinese";
                 "type":"wandb", 
                 "project":"crime-classification",
                 "entity":"hengyuan",
-                "name":"bert-lr4e-5-allennlp",
+                "name":"bert-pooler-lr2e-5-allennlp",
                 "watch_model":0,
                 "should_log_learning_rate":1
             },
