@@ -46,7 +46,7 @@ local bert_model = "bert-base-chinese";
         },
         "learning_rate_scheduler": {
             "type": "linear_with_warmup",
-            "warmup_steps":100
+            "warmup_steps":1000
         },
         "num_epochs": 100,
         "patience":7,
