@@ -18,9 +18,9 @@
 ├── server.sh
 └── train.sh
 ├── evaluate.sh
+```
 * configuration directory includes all the configure files
 * my_text_classificatier directory includes the class which is registered
-```
 
 # Setup
 `pip install -r requirements.txt`
