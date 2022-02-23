@@ -2,6 +2,7 @@
 基于AllenNLP的罪名预测
 
 # File Structure
+```markdown
 ── configuration
 │   ├── my_text_classifier_bert.jsonnet
 │   ├── my_text_classifier_cnn.jsonnet
@@ -19,6 +20,7 @@
 ├── evaluate.sh
 * configuration directory includes all the configure files
 * my_text_classificatier directory includes the class which is registered
+```
 
 # Setup
 `pip install -r requirements.txt`
