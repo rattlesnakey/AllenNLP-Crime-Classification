@@ -8,7 +8,6 @@ from overrides import overrides
 @Predictor.register("sentence_classifier")
 class SentenceClassifierPredictor(Predictor):
     def predict(self, sentence: str) -> JsonDict:
-        # 这个sentence这个key是自己定义的
         return self.predict_json({"sentence": sentence})
 
     @overrides

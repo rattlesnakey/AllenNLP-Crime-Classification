@@ -15,8 +15,8 @@ local bert_model = "bert-base-chinese";
         },
         "max_tokens": 512
     },
-   "train_data_path": "data/crime_dataset/final_crime_data/filter_train_processed.tsv",
-    "validation_data_path": "data/crime_dataset/final_crime_data/filter_valid_processed.tsv",
+    "train_data_path": "../data/crime_dataset/final_crime_data/filter_train_processed.tsv",
+    "validation_data_path": "../data/crime_dataset/final_crime_data/filter_valid_processed.tsv",
     "model": {
         "type": "simple_classifier",
         "embedder": {
@@ -28,11 +28,9 @@ local bert_model = "bert-base-chinese";
             }
         },
         "encoder": {
-            "type": "cnn",
-            "embedding_dim": 768,
-            "num_filters": 64,
-            "ngram_filter_sizes": [2,3],
-            "output_dim":64
+            "type": "bert_pooler",
+            "pretrained_model": bert_model,
+            "requires_grad": true
         }
     },
     "data_loader": {
@@ -41,10 +39,10 @@ local bert_model = "bert-base-chinese";
     },
     "trainer": {
         "type":"gradient_descent",
-        "cuda_device":6,
+        "cuda_device":1,
         "optimizer": {
             "type": "huggingface_adamw",
-            "lr": 1e-5
+            "lr": 2e-5
         },
         "learning_rate_scheduler": {
             "type": "linear_with_warmup",
@@ -58,7 +56,7 @@ local bert_model = "bert-base-chinese";
                 "type":"wandb", 
                 "project":"crime-classification",
                 "entity":"hengyuan",
-                "name":"bert-cnn-lr1e-5-warmup1000-allennlp",
+                "name":"bert-pooler-lr2e-5-allennlp",
                 "watch_model":0,
                 "should_log_learning_rate":1
             },
@@ -67,5 +65,6 @@ local bert_model = "bert-base-chinese";
             }
         ]
     },
-    "serialization_dir":"bert-cnn-model",
+    "serialization_dir":"bert-model",
 }
+

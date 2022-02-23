@@ -1,7 +1,13 @@
+set -v
+set -e
+PORT=8085
+HOST=x
+MODEL_PATH=
+
 allennlp serve \
-    --archive-path model/model.tar.gz \
+    --archive-path ${MODEL_PATH} \
     --predictor sentence_classifier \
     --field-name sentence \
     --include-package my_text_classifier \
-    --host 202.112.194.62 \
-    -p 8085
+    --host ${HOST} \
+    -p ${PORT}
